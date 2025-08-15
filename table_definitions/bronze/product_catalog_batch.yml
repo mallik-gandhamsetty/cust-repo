@@ -1,0 +1,389 @@
+# Bronze Layer - Product Catalog Batch (Cloud Files Auto Loader)
+# Product master data from ERP systems via cloud storage
+metadata:
+  name: "bronze_product_catalog_batch"
+  description: "Product catalog master data ingested via Cloud Files Auto Loader from ERP exports"
+  layer: "bronze"
+  source_system: "erp_product_management"
+  data_classification: "product_master_data"
+  created_by: "nexa_platform"
+  materialization: "STREAMING_TABLE"
+  
+# Unity Catalog Configuration
+unity_catalog:
+  catalog: "workspace"
+  schema: "bronze_batch"
+  table_name: "product_catalog"
+  table_type: "MANAGED"
+  
+# Cloud Files Auto Loader Configuration
+source:
+  type: "cloudfiles"
+  format: "json"
+  location: "s3://megamart-data-lake-prod/raw/product_catalog/"
+  
+  cloudfiles_options:
+    "cloudFiles.format": "json"
+    "cloudFiles.schemaLocation": "s3://megamart-data-lake-prod/schemas/product_catalog/"
+    "cloudFiles.inferColumnTypes": "true"
+    "cloudFiles.schemaEvolutionMode": "addNewColumns"
+    "cloudFiles.maxFilesPerTrigger": "50"
+    "cloudFiles.useIncrementalListing": "auto"
+    "cloudFiles.includeExistingFiles": "false"
+    "cloudFiles.validateOptions": "true"
+    
+  read_options:
+    multiline: "true"
+    allowComments: "true"
+    allowUnquotedFieldNames: "false"
+    allowSingleQuotes: "true"
+    
+# Table Schema Definition
+schema:
+  - name: "product_id"
+    type: "string"
+    nullable: false
+    description: "Unique product identifier (SKU)"
+    
+  - name: "product_name"
+    type: "string"
+    nullable: false
+    description: "Product display name"
+    
+  - name: "product_description"
+    type: "string"
+    nullable: true
+    description: "Detailed product description"
+    
+  - name: "brand"
+    type: "string"
+    nullable: false
+    description: "Product brand name"
+    
+  - name: "manufacturer"
+    type: "string"
+    nullable: true
+    description: "Product manufacturer name"
+    
+  - name: "category_l1"
+    type: "string"
+    nullable: false
+    description: "Level 1 product category"
+    
+  - name: "category_l2"
+    type: "string"
+    nullable: true
+    description: "Level 2 product category"
+    
+  - name: "category_l3"
+    type: "string"
+    nullable: true
+    description: "Level 3 product category"
+    
+  - name: "category_path"
+    type: "string"
+    nullable: false
+    description: "Full category hierarchy path"
+    
+  - name: "upc"
+    type: "string"
+    nullable: true
+    description: "Universal Product Code"
+    
+  - name: "ean"
+    type: "string"
+    nullable: true
+    description: "European Article Number"
+    
+  - name: "current_price"
+    type: "decimal(10,2)"
+    nullable: false
+    description: "Current retail price"
+    
+  - name: "cost_price"
+    type: "decimal(10,2)"
+    nullable: true
+    description: "Product cost price"
+    
+  - name: "msrp"
+    type: "decimal(10,2)"
+    nullable: true
+    description: "Manufacturer suggested retail price"
+    
+  - name: "currency"
+    type: "string"
+    nullable: false
+    description: "Price currency code"
+    
+  - name: "unit_of_measure"
+    type: "string"
+    nullable: false
+    description: "Unit of measure (each, lb, kg, etc.)"
+    
+  - name: "weight"
+    type: "decimal(8,3)"
+    nullable: true
+    description: "Product weight"
+    
+  - name: "weight_unit"
+    type: "string"
+    nullable: true
+    description: "Weight unit (lb, kg, oz, g)"
+    
+  - name: "dimensions"
+    type: "string"
+    nullable: true
+    description: "Product dimensions as JSON object"
+    
+  - name: "color"
+    type: "string"
+    nullable: true
+    description: "Product color"
+    
+  - name: "size"
+    type: "string"
+    nullable: true
+    description: "Product size"
+    
+  - name: "material"
+    type: "string"
+    nullable: true
+    description: "Product material composition"
+    
+  - name: "attributes"
+    type: "string"
+    nullable: true
+    description: "Additional product attributes as JSON object"
+    
+  - name: "is_active"
+    type: "boolean"
+    nullable: false
+    description: "Whether product is currently active"
+    
+  - name: "is_discontinued"
+    type: "boolean"
+    nullable: false
+    description: "Whether product has been discontinued"
+    
+  - name: "launch_date"
+    type: "date"
+    nullable: true
+    description: "Product launch date"
+    
+  - name: "discontinue_date"
+    type: "date"
+    nullable: true
+    description: "Product discontinue date"
+    
+  - name: "supplier_id"
+    type: "string"
+    nullable: true
+    description: "Primary supplier identifier"
+    
+  - name: "supplier_name"
+    type: "string"
+    nullable: true
+    description: "Primary supplier name"
+    
+  - name: "lead_time_days"
+    type: "int"
+    nullable: true
+    description: "Supplier lead time in days"
+    
+  - name: "minimum_order_quantity"
+    type: "int"
+    nullable: true
+    description: "Minimum order quantity from supplier"
+    
+  - name: "tags"
+    type: "string"
+    nullable: true
+    description: "Product tags as JSON array"
+    
+  - name: "images"
+    type: "string"
+    nullable: true
+    description: "Product image URLs as JSON array"
+    
+  - name: "created_date"
+    type: "timestamp"
+    nullable: true
+    description: "Record creation timestamp in source system"
+    
+  - name: "modified_date"
+    type: "timestamp"
+    nullable: false
+    description: "Record last modified timestamp in source system"
+    
+  - name: "source_system"
+    type: "string"
+    nullable: false
+    description: "Source ERP system identifier"
+    
+  - name: "file_path"
+    type: "string"
+    nullable: false
+    description: "Source file path for audit trail"
+    
+  - name: "file_modification_time"
+    type: "timestamp"
+    nullable: false
+    description: "Source file modification timestamp"
+    
+  - name: "ingested_at"
+    type: "timestamp"
+    nullable: false
+    description: "Data ingestion timestamp"
+    generated_column: "current_timestamp()"
+
+# Table Properties and Optimization
+table_properties:
+  "delta.enableChangeDataFeed": "true"
+  "delta.autoOptimize.optimizeWrite": "true"
+  "delta.autoOptimize.autoCompact": "true"
+  "delta.deletedFileRetentionDuration": "interval 30 days"
+  "delta.logRetentionDuration": "interval 90 days"
+  "delta.checkpoint.writeStatsAsJson": "true"
+
+# Partitioning and Clustering Strategy
+partitioning:
+  partition_by: ["category_l1", "is_active"]
+  cluster_by: ["brand", "supplier_id"]
+  z_order_by: ["product_id", "modified_date"]
+
+# Data Quality Expectations
+expectations:
+  - name: "valid_product_id"
+    expression: "product_id IS NOT NULL AND LENGTH(product_id) >= 5"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "valid_product_name"
+    expression: "product_name IS NOT NULL AND LENGTH(TRIM(product_name)) > 0"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "valid_brand"
+    expression: "brand IS NOT NULL AND LENGTH(TRIM(brand)) > 0"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "valid_category_l1"
+    expression: "category_l1 IS NOT NULL AND LENGTH(TRIM(category_l1)) > 0"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "positive_current_price"
+    expression: "current_price > 0"
+    action: "FAIL"
+    tag: "business_rule"
+    
+  - name: "valid_currency"
+    expression: "currency IN ('USD', 'EUR', 'GBP', 'CAD', 'AUD')"
+    action: "FAIL"
+    tag: "reference_data"
+    
+  - name: "cost_price_reasonable"
+    expression: "cost_price IS NULL OR (cost_price >= 0 AND cost_price <= current_price)"
+    action: "QUARANTINE"
+    tag: "business_rule"
+    
+  - name: "msrp_reasonable"
+    expression: "msrp IS NULL OR msrp >= current_price"
+    action: "QUARANTINE"
+    tag: "business_rule"
+    
+  - name: "valid_unit_of_measure"
+    expression: "unit_of_measure IN ('each', 'lb', 'kg', 'oz', 'g', 'liter', 'ml', 'yard', 'meter', 'foot', 'inch')"
+    action: "QUARANTINE"
+    tag: "reference_data"
+    
+  - name: "discontinued_logic"
+    expression: "is_discontinued = false OR (is_discontinued = true AND discontinue_date IS NOT NULL)"
+    action: "QUARANTINE"
+    tag: "business_rule"
+    
+  - name: "launch_before_discontinue"
+    expression: "launch_date IS NULL OR discontinue_date IS NULL OR launch_date <= discontinue_date"
+    action: "QUARANTINE"
+    tag: "business_rule"
+
+# Streaming Configuration (Auto Loader)
+streaming:
+  trigger: "processingTime"
+  interval: "15 minutes"
+  checkpointLocation: "s3://megamart-data-lake-prod/checkpoints/bronze_product_catalog_batch/"
+  
+  # Handle late-arriving files
+  maxFileAge: "1 week"
+  
+  # Change Data Capture for updates
+  merge_schema: true
+  merge_condition: "target.product_id = source.product_id"
+  
+  # Incremental processing
+  write_mode: "append"
+  deduplicate_columns: ["product_id", "modified_date"]
+
+# Monitoring and Observability
+monitoring:
+  data_quality:
+    enabled: true
+    expectation_failure_threshold: 0.02  # 2%
+    
+  performance:
+    enabled: true
+    files_processed_threshold_per_hour: 100
+    records_processed_threshold_per_hour: 50000
+    
+  alerts:
+    - name: "high_quality_failure_rate"
+      condition: "expectation_failures > 1000 in 1 hour"
+      severity: "high"
+      
+    - name: "no_new_files"
+      condition: "files_processed = 0 for 4 hours"
+      severity: "medium"
+      
+    - name: "schema_evolution_detected"
+      condition: "new_columns_added > 0"
+      severity: "low"
+
+# Access Control
+access_control:
+  read_access: ["data_engineers", "data_analysts", "product_team", "bronze_pipeline_service"]
+  write_access: ["bronze_pipeline_service", "autoloader_service"]
+  admin_access: ["data_engineering_leads", "platform_admins"]
+
+# Retention and Lifecycle
+retention:
+  raw_data_days: 2555  # 7 years for product history
+  checkpoint_days: 30
+  vacuum_enabled: true
+  vacuum_retention_hours: 168  # 7 days
+
+# Schema Evolution Handling
+schema_evolution:
+  mode: "merge"
+  allow_column_additions: true
+  allow_column_type_changes: false
+  notify_on_schema_changes: true
+  schema_change_notification_emails: ["data-engineering@megamart.com"]
+
+# Lineage and Governance
+lineage:
+  upstream_sources: ["s3://megamart-data-lake-prod/raw/product_catalog/"]
+  downstream_tables: ["silver_curated.product_catalog_standardized"]
+  business_purpose: "Master product catalog data for inventory, pricing, and merchandising"
+  data_domain: "product_master"
+  
+# Tags for Governance
+tags:
+  environment: "production"
+  layer: "bronze"
+  source_type: "batch"
+  data_domain: "product"
+  pii_data: "false"
+  compliance: "none"
+  retention_policy: "7_years"
+  critical_business_data: "true"

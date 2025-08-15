@@ -1,0 +1,206 @@
+# Silver Layer - Cleansed POS Transactions
+# Cleansed and enriched transaction data with JSON flattening
+metadata:
+  name: "silver_pos_transactions_cleansed"
+  description: "Cleansed POS transaction data with JSON flattening and business enrichments"
+  layer: "silver"
+  source_system: "bronze_streaming.pos_transactions"
+  data_classification: "cleansed_transaction_data"
+  created_by: "nexa_platform"
+  materialization: "STREAMING_TABLE"
+  
+# Unity Catalog Configuration
+unity_catalog:
+  catalog: "workspace"
+  schema: "silver_curated"
+  table_name: "pos_transactions_cleansed"
+  table_type: "MANAGED"
+  
+# Source Configuration
+source:
+  type: "streaming_table"
+  source_table: "bronze_streaming.pos_transactions"
+  
+# Table Schema Definition (Key fields from transformation)
+schema:
+  - name: "transaction_id"
+    type: "string"
+    nullable: false
+    description: "Unique transaction identifier"
+    
+  - name: "store_id"
+    type: "string"
+    nullable: false
+    description: "Store identifier"
+    
+  - name: "customer_id"
+    type: "string"
+    nullable: true
+    description: "Customer identifier (cleaned)"
+    
+  - name: "transaction_timestamp"
+    type: "timestamp"
+    nullable: false
+    description: "Transaction timestamp"
+    
+  - name: "transaction_date"
+    type: "date"
+    nullable: false
+    description: "Transaction date for partitioning"
+    
+  - name: "total_amount"
+    type: "decimal(15,2)"
+    nullable: false
+    description: "Final transaction total"
+    
+  - name: "subtotal"
+    type: "decimal(15,2)"
+    nullable: false
+    description: "Pre-tax subtotal"
+    
+  - name: "tax_amount"
+    type: "decimal(10,2)"
+    nullable: false
+    description: "Tax amount"
+    
+  - name: "discount_amount"
+    type: "decimal(10,2)"
+    nullable: true
+    description: "Discount amount applied"
+    
+  - name: "payment_method_clean"
+    type: "string"
+    nullable: false
+    description: "Standardized payment method"
+    
+  - name: "item_count"
+    type: "int"
+    nullable: false
+    description: "Number of item types in transaction (from JSON)"
+    
+  - name: "total_quantity"
+    type: "int"
+    nullable: false
+    description: "Total quantity of items (from JSON)"
+    
+  - name: "items_json"
+    type: "string"
+    nullable: true
+    description: "Flattened items JSON for downstream processing"
+    
+  - name: "promotion_count"
+    type: "int"
+    nullable: false
+    description: "Number of promotions applied (from JSON)"
+    
+  - name: "customer_type"
+    type: "string"
+    nullable: false
+    description: "Member or Guest classification"
+    
+  - name: "transaction_size"
+    type: "string"
+    nullable: false
+    description: "Small, Medium, Large, Very Large classification"
+    
+  - name: "time_of_day"
+    type: "string"
+    nullable: false
+    description: "Morning, Afternoon, Evening, Night"
+    
+  - name: "day_name"
+    type: "string"
+    nullable: false
+    description: "Monday through Sunday"
+    
+  - name: "discount_applied"
+    type: "boolean"
+    nullable: false
+    description: "Whether any discount was applied"
+    
+  - name: "processed_at"
+    type: "timestamp"
+    nullable: false
+    description: "Silver layer processing timestamp"
+
+# Table Properties and Optimization
+table_properties:
+  "delta.enableChangeDataFeed": "true"
+  "delta.autoOptimize.optimizeWrite": "true"
+  "delta.autoOptimize.autoCompact": "true"
+  "delta.deletedFileRetentionDuration": "interval 7 days"
+  "delta.logRetentionDuration": "interval 30 days"
+
+# Partitioning and Clustering Strategy
+partitioning:
+  partition_by: ["transaction_date", "store_id"]
+  cluster_by: ["customer_id", "payment_method_clean"]
+  z_order_by: ["transaction_timestamp", "total_amount"]
+
+# Data Quality Expectations
+expectations:
+  - name: "valid_transaction_id"
+    expression: "transaction_id IS NOT NULL"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "positive_amounts"
+    expression: "total_amount > 0 AND subtotal > 0"
+    action: "DROP"
+    tag: "business_rule"
+    
+  - name: "amounts_balance"
+    expression: "ABS(total_amount - calculated_total) < 0.01"
+    action: "QUARANTINE"
+    tag: "business_rule"
+    
+  - name: "valid_store_format"
+    expression: "store_id RLIKE '^STORE_[0-9]{4}$'"
+    action: "QUARANTINE"
+    tag: "format_validation"
+    
+  - name: "payment_method_valid"
+    expression: "payment_method_clean IN ('CASH', 'CREDIT', 'DEBIT', 'MOBILE', 'GIFT_CARD', 'CHECK')"
+    action: "QUARANTINE"
+    tag: "reference_data"
+
+# Streaming Configuration
+streaming:
+  trigger: "processingTime"
+  interval: "1 minute"
+  checkpointLocation: "s3://megamart-data-lake-prod/checkpoints/silver_pos_transactions_cleansed/"
+  
+  watermark:
+    column: "transaction_timestamp"
+    delay_threshold: "2 minutes"
+
+# Access Control
+access_control:
+  read_access: ["data_engineers", "data_analysts", "business_analysts", "silver_pipeline_service"]
+  write_access: ["silver_pipeline_service", "transformation_service"]
+  admin_access: ["data_engineering_leads", "platform_admins"]
+
+# Retention and Lifecycle
+retention:
+  raw_data_days: 2555  # 7 years for compliance
+  checkpoint_days: 30
+  vacuum_enabled: true
+  vacuum_retention_hours: 168  # 7 days
+
+# Lineage and Governance
+lineage:
+  upstream_sources: ["bronze_streaming.pos_transactions"]
+  downstream_tables: ["gold_analytics.customer_360", "gold_analytics.sales_fact_daily"]
+  business_purpose: "Cleansed and standardized transaction data for analytics and reporting"
+  data_domain: "sales_transactions"
+  
+# Tags for Governance
+tags:
+  environment: "production"
+  layer: "silver"
+  source_type: "streaming"
+  data_domain: "sales"
+  pii_data: "false"
+  compliance: "pci_dss"
+  retention_policy: "7_years"
+  critical_business_data: "true"

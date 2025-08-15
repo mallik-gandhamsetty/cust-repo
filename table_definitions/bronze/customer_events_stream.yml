@@ -1,0 +1,292 @@
+# Bronze Layer - Customer Events Stream (Kafka Source)
+# Real-time customer interaction and behavior events
+metadata:
+  name: "bronze_customer_events_stream"
+  description: "Real-time customer event stream from Kafka topic customer-events-v1"
+  layer: "bronze"
+  source_system: "kafka_customer_platform"
+  data_classification: "customer_behavior_data"
+  created_by: "nexa_platform"
+  materialization: "STREAMING_TABLE"
+  
+# Unity Catalog Configuration
+unity_catalog:
+  catalog: "workspace"
+  schema: "bronze_streaming"
+  table_name: "customer_events"
+  table_type: "MANAGED"
+  
+# Kafka Source Configuration
+source:
+  type: "kafka"
+  topic: "customer-events-v1"
+  format: "json"
+  
+  kafka_config:
+    bootstrap_servers: "kafka-cluster.megamart.internal:9092"
+    security_protocol: "SASL_SSL"
+    sasl_mechanism: "PLAIN"
+    auto_offset_reset: "latest"
+    enable_auto_commit: false
+    
+  streaming_options:
+    maxOffsetsPerTrigger: 15000
+    startingOffsets: "latest"
+    failOnDataLoss: false
+    kafka.request.timeout.ms: 60000
+    kafka.session.timeout.ms: 30000
+    
+# Table Schema Definition
+schema:
+  - name: "event_id"
+    type: "string"
+    nullable: false
+    description: "Unique event identifier"
+    
+  - name: "customer_id"
+    type: "string"
+    nullable: false
+    description: "Customer identifier"
+    
+  - name: "session_id"
+    type: "string"
+    nullable: false
+    description: "Customer session identifier"
+    
+  - name: "event_type"
+    type: "string"
+    nullable: false
+    description: "Type of customer event"
+    
+  - name: "event_timestamp"
+    type: "timestamp"
+    nullable: false
+    description: "Event occurrence timestamp"
+    
+  - name: "event_date"
+    type: "date"
+    nullable: false
+    description: "Event date for partitioning"
+    generated_column: "CAST(event_timestamp AS DATE)"
+    
+  - name: "channel"
+    type: "string"
+    nullable: false
+    description: "Interaction channel (web, mobile, store, call_center)"
+    
+  - name: "device_info"
+    type: "string"
+    nullable: true
+    description: "Device information JSON object"
+    
+  - name: "location_info"
+    type: "string"
+    nullable: true
+    description: "Location information JSON object"
+    
+  - name: "event_properties"
+    type: "string"
+    nullable: true
+    description: "Event-specific properties as JSON object"
+    
+  - name: "page_url"
+    type: "string"
+    nullable: true
+    description: "Page URL for web events"
+    
+  - name: "referrer_url"
+    type: "string"
+    nullable: true
+    description: "Referrer URL for web events"
+    
+  - name: "user_agent"
+    type: "string"
+    nullable: true
+    description: "User agent string for web/mobile events"
+    
+  - name: "ip_address"
+    type: "string"
+    nullable: true
+    description: "Hashed IP address for privacy"
+    
+  - name: "store_id"
+    type: "string"
+    nullable: true
+    description: "Store ID for in-store events"
+    
+  - name: "employee_id"
+    type: "string"
+    nullable: true
+    description: "Employee ID for assisted interactions"
+    
+  - name: "product_ids"
+    type: "string"
+    nullable: true
+    description: "JSON array of product IDs involved in event"
+    
+  - name: "category_ids"
+    type: "string"
+    nullable: true
+    description: "JSON array of category IDs involved in event"
+    
+  - name: "campaign_id"
+    type: "string"
+    nullable: true
+    description: "Marketing campaign identifier"
+    
+  - name: "experiment_id"
+    type: "string"
+    nullable: true
+    description: "A/B test experiment identifier"
+    
+  - name: "experiment_variant"
+    type: "string"
+    nullable: true
+    description: "A/B test variant shown to customer"
+    
+  - name: "kafka_partition"
+    type: "int"
+    nullable: false
+    description: "Kafka partition number"
+    
+  - name: "kafka_offset"
+    type: "long"
+    nullable: false
+    description: "Kafka offset for exactly-once processing"
+    
+  - name: "kafka_timestamp"
+    type: "timestamp"
+    nullable: false
+    description: "Kafka message timestamp"
+    
+  - name: "ingested_at"
+    type: "timestamp"
+    nullable: false
+    description: "Data ingestion timestamp"
+    generated_column: "current_timestamp()"
+
+# Table Properties and Optimization
+table_properties:
+  "delta.enableChangeDataFeed": "true"
+  "delta.autoOptimize.optimizeWrite": "true"
+  "delta.autoOptimize.autoCompact": "true"
+  "delta.deletedFileRetentionDuration": "interval 7 days"
+  "delta.logRetentionDuration": "interval 30 days"
+  "delta.checkpoint.writeStatsAsJson": "true"
+
+# Partitioning and Clustering Strategy
+partitioning:
+  partition_by: ["event_date", "channel"]
+  cluster_by: ["customer_id", "event_type"]
+  z_order_by: ["event_timestamp", "session_id"]
+
+# Data Quality Expectations
+expectations:
+  - name: "valid_event_id"
+    expression: "event_id IS NOT NULL AND LENGTH(event_id) >= 20"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "valid_customer_id"
+    expression: "customer_id IS NOT NULL AND LENGTH(customer_id) >= 10"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "valid_session_id"
+    expression: "session_id IS NOT NULL AND LENGTH(session_id) >= 15"
+    action: "FAIL"
+    tag: "validity"
+    
+  - name: "valid_event_type"
+    expression: "event_type IN ('page_view', 'product_view', 'add_to_cart', 'remove_from_cart', 'purchase', 'search', 'login', 'logout', 'registration', 'profile_update', 'wishlist_add', 'review_submit', 'support_contact', 'store_visit', 'promotion_view', 'email_open', 'email_click')"
+    action: "FAIL"
+    tag: "reference_data"
+    
+  - name: "valid_channel"
+    expression: "channel IN ('web', 'mobile_app', 'mobile_web', 'store', 'call_center', 'email', 'sms', 'social')"
+    action: "FAIL"
+    tag: "reference_data"
+    
+  - name: "recent_timestamp"
+    expression: "event_timestamp > current_timestamp() - INTERVAL 1 DAY AND event_timestamp <= current_timestamp()"
+    action: "DROP"
+    tag: "data_freshness"
+    
+  - name: "store_events_have_store_id"
+    expression: "channel != 'store' OR (channel = 'store' AND store_id IS NOT NULL)"
+    action: "QUARANTINE"
+    tag: "business_rule"
+    
+  - name: "web_events_have_page_url"
+    expression: "channel NOT IN ('web', 'mobile_web') OR (channel IN ('web', 'mobile_web') AND page_url IS NOT NULL)"
+    action: "QUARANTINE"
+    tag: "business_rule"
+
+# Streaming Configuration
+streaming:
+  trigger: "processingTime"
+  interval: "3 seconds"
+  checkpointLocation: "s3://megamart-data-lake-prod/checkpoints/bronze_customer_events_stream/"
+  
+  watermark:
+    column: "event_timestamp"
+    delay_threshold: "30 seconds"
+    
+  duplicate_handling:
+    primary_keys: ["event_id", "kafka_partition", "kafka_offset"]
+    merge_condition: "target.event_id = source.event_id"
+
+# Monitoring and Observability
+monitoring:
+  data_quality:
+    enabled: true
+    expectation_failure_threshold: 0.005  # 0.5%
+    
+  performance:
+    enabled: true
+    latency_threshold_seconds: 15
+    throughput_threshold_records_per_second: 2000
+    
+  alerts:
+    - name: "high_failure_rate"
+      condition: "expectation_failures > 200 in 5 minutes"
+      severity: "high"
+      
+    - name: "processing_delay" 
+      condition: "streaming_lag > 1 minute"
+      severity: "medium"
+      
+    - name: "suspicious_event_volume"
+      condition: "records_per_second > 10000 for 5 minutes"
+      severity: "medium"
+
+# Access Control
+access_control:
+  read_access: ["data_engineers", "data_analysts", "customer_analytics_team", "bronze_pipeline_service"]
+  write_access: ["bronze_pipeline_service", "kafka_ingestion_service"]
+  admin_access: ["data_engineering_leads", "platform_admins"]
+
+# Retention and Lifecycle
+retention:
+  raw_data_days: 1095  # 3 years for customer behavior data
+  checkpoint_days: 30
+  vacuum_enabled: true
+  vacuum_retention_hours: 168  # 7 days
+
+# Lineage and Governance  
+lineage:
+  upstream_sources: ["kafka://customer-events-v1"]
+  downstream_tables: ["silver_curated.customer_events_processed", "silver_curated.web_events_sessionized"]
+  business_purpose: "Real-time customer behavior tracking for personalization and analytics"
+  data_domain: "customer_behavior"
+  
+# Tags for Governance
+tags:
+  environment: "production"
+  layer: "bronze"
+  source_type: "streaming"
+  data_domain: "customer"
+  pii_data: "true"  # Contains customer identifiers and behavior
+  compliance: "gdpr"
+  retention_policy: "3_years"
+  critical_business_data: "true"
