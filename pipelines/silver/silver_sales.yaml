@@ -1,0 +1,13 @@
+name: Silver Sales Data Quality
+catalog: dev
+target: silver
+continuous: false
+development: false
+photon: true
+channel: CURRENT
+serverless: true
+configuration:
+  pipeline.layer: silver
+  pipeline.entity: sales
+  pipeline.dependencies: bronze_sales
+  pipeline.description: Cleaned and validated sales data with quality checks
