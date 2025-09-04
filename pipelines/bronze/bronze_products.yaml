@@ -1,0 +1,13 @@
+name: Bronze Products Data Ingestion
+catalog: dev
+target: bronze
+continuous: false
+development: false
+photon: true
+channel: CURRENT
+serverless: true
+configuration:
+  pipeline.layer: bronze
+  pipeline.entity: products
+  pipeline.source: retail_sales_products
+  pipeline.description: Raw product data ingestion from landing volume to bronze table
