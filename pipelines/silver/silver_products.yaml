@@ -1,0 +1,13 @@
+name: Silver Products Data Quality
+catalog: dev
+target: silver
+continuous: false
+development: false
+photon: true
+channel: CURRENT
+serverless: true
+configuration:
+  pipeline.layer: silver
+  pipeline.entity: products
+  pipeline.dependencies: bronze_products
+  pipeline.description: Cleaned and validated product data with quality checks
