@@ -1,0 +1,13 @@
+name: Gold Customer Sales Analytics
+catalog: dev
+target: gold
+continuous: false
+development: false
+photon: true
+channel: CURRENT
+serverless: true
+configuration:
+  pipeline.layer: gold
+  pipeline.entity: customer_sales
+  pipeline.dependencies: silver_customers,silver_sales
+  pipeline.description: Business-ready analytics combining customer and sales data
