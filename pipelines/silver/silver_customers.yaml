@@ -1,0 +1,13 @@
+name: Silver Customers Data Quality
+catalog: dev
+target: silver
+continuous: false
+development: false
+photon: true
+channel: CURRENT
+serverless: true
+configuration:
+  pipeline.layer: silver
+  pipeline.entity: customers
+  pipeline.dependencies: bronze_customers
+  pipeline.description: Cleaned and validated customer data with quality checks
